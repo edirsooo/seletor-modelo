@@ -1,0 +1,5 @@
+{
+  "name": "seletor-modelo",
+  "owner": { "name": "edirsooo" },
+  "plugins": [{ "name": "seletor-modelo", "source": "./" }]
+}

@@ -1,0 +1,6 @@
+{
+  "name": "seletor-modelo",
+  "version": "0.1.0",
+  "description": "Faixa acima do prompt com 4 modelos (Fable, Opus, Sonnet, Haiku) e barrinha de esforço",
+  "types": "./types/index.d.ts"
+}
