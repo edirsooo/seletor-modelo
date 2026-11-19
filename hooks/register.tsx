@@ -356,42 +356,44 @@ export const register: Register = on => {
       }
     }
 
-    // Duas colunas: à esquerda as duas linhas (contexto; modelo e esforço), à direita Limpar sobre Compactar.
-    // Tela estreita (janela pequena, monitor vertical): a coluna da esquerda encolhe e cada linha quebra
-    // em blocos inteiros (barra+%, painel, modelos, esforço), sem partir nenhum; os botões ficam à direita.
+    // Meta: põe "/goal " na caixa de mensagem e deixa o cursor no fim, para escrever a meta e dar Enter
+    const meta = async () => {
+      try {
+        await $.prompt.fill({ text: '/goal ', mode: 'replace' })
+      } catch {
+        $.ui.toast('Não consegui abrir o /goal')
+      }
+    }
+
+    // Três seções bem espaçadas, cada uma com duas linhas alinhadas entre si:
+    //   1) Contexto (barra + %) em cima, modelos embaixo; o % termina na borda direita dos modelos.
+    //   2) Tokens em cima, esforço embaixo; os dois começam na mesma borda esquerda.
+    //   3) Limpar em cima, Meta e Compactar embaixo; tudo encostado na direita.
+    // Tela estreita: as seções quebram inteiras para a linha de baixo, sem partir nenhuma.
+    const nomeNivel = pos >= 0 ? NIVEIS[pos]!.nome : 'do app'
     return (
-      <Box flexDirection="row" alignItems="center" columnGap={3}>
-      <Box flexDirection="column" rowGap={1} flexGrow={1} flexShrink={1}>
-        {/* Linha 1: contexto, uma barra redonda e simples */}
-        {ctx !== null && (
-          <Box flexDirection="row" alignItems="center" flexWrap="wrap" columnGap={2} rowGap={1}>
-            <Box flexDirection="row" alignItems="center" columnGap={2} flexShrink={0}>
+      <Box flexDirection="row" alignItems="stretch" justifyContent="space-between" columnGap={2}>
+        {/* Seção 1: contexto e modelos */}
+        <Box flexDirection="column" alignItems="stretch" justifyContent="space-between" rowGap={1} flexShrink={0}>
+          <Box flexDirection="row" alignItems="center" justifyContent="space-between" columnGap={2}>
+            {ctx !== null && (
               <Text dimColor size="footnote">
                 Contexto
               </Text>
-              {Svg !== undefined ? (
-                <Svg source={svgContexto(ctx, tom, 150, 8)} alt={`Contexto em ${ctx.pct}%`} width={150} height={8} />
+            )}
+            {ctx !== null &&
+              (Svg !== undefined ? (
+                <Svg source={svgContexto(ctx, tom, 130, 8)} alt={`Contexto em ${ctx.pct}%`} width={130} height={8} />
               ) : (
                 <Text color={tom}>{barraTexto(ctx.pct, 20)}</Text>
-              )}
+              ))}
+            {ctx !== null && (
               <Text color={tom} weight="semibold" tabular>
                 {`${ctx.pct}%`}
               </Text>
-            </Box>
-            {/* Painelzinho: uso da janela, entrada (verde), saída (vermelho) e custo */}
-            {Svg !== undefined && painel !== null ? (
-              <Svg source={painel.svg} alt={partes.map(p => p.texto).join(' · ')} width={painel.W} height={22} />
-            ) : (
-              <Text dimColor wrap="truncate">
-                {partes.map(p => p.texto).join(' · ')}
-              </Text>
             )}
           </Box>
-        )}
-
-        {/* Linha 2: modelo e esforço */}
-        <Box flexDirection="row" alignItems="center" flexWrap="wrap" columnGap={3} rowGap={1}>
-          <Box flexDirection="row" alignItems="center" gap={1} flexShrink={0}>
+          <Box flexDirection="row" alignItems="center" gap={1}>
             {MODELOS.map((x, i) => (
               <Button
                 key={`m-${x.id}`}
@@ -401,9 +403,20 @@ export const register: Register = on => {
               />
             ))}
           </Box>
+        </Box>
 
-          {/* Esforço: rótulo e nível juntos; a trilha vem depois e se arrasta (sem − e +) */}
-          <Box flexDirection="row" alignItems="center" columnGap={2} flexShrink={0}>
+        {/* Seção 2: tokens e esforço */}
+        <Box flexDirection="column" alignItems="stretch" justifyContent="space-between" rowGap={1} flexShrink={0}>
+          <Box flexDirection="row" alignItems="center" justifyContent="flex-start">
+            {Svg !== undefined && painel !== null ? (
+              <Svg source={painel.svg} alt={partes.map(p => p.texto).join(' · ')} width={painel.W} height={22} />
+            ) : (
+              <Text dimColor wrap="truncate">
+                {partes.map(p => p.texto).join(' · ')}
+              </Text>
+            )}
+          </Box>
+          <Box flexDirection="row" alignItems="center" columnGap={2}>
             <Text dimColor size="footnote">
               Esforço
             </Text>
@@ -414,7 +427,7 @@ export const register: Register = on => {
             </Box>
             {temClient && !trilhaFalhou && Svg !== undefined ? (
               <Box position="relative" flexShrink={0}>
-                <Svg source={svgEsforco(pos, 150, 22)} alt={`Esforço ${pos >= 0 ? NIVEIS[pos]!.nome : 'do app'}`} width={150} height={22} />
+                <Svg source={svgEsforco(pos, 120, 22)} alt={`Esforço ${nomeNivel}`} width={120} height={22} />
                 <Box position="absolute" top={0} left={0} right={0} bottom={0}>
                   <Client key="e-trilha" module="./trilha.tsx" props={{ niveis: NIVEIS.length }} width="100%" height="100%" />
                 </Box>
@@ -423,7 +436,7 @@ export const register: Register = on => {
               <>
                 <Button key="e-menos" label="−" dimColor={pos === 0} onPress={() => void anda(-1)} />
                 {Svg !== undefined ? (
-                  <Svg source={svgEsforco(pos, 130, 22)} alt={`Esforço ${pos >= 0 ? NIVEIS[pos]!.nome : 'do app'}`} width={130} height={22} />
+                  <Svg source={svgEsforco(pos, 130, 22)} alt={`Esforço ${nomeNivel}`} width={130} height={22} />
                 ) : (
                   <Text color={AZUL}>{trilhaTexto(pos)}</Text>
                 )}
@@ -432,12 +445,21 @@ export const register: Register = on => {
             )}
           </Box>
         </Box>
-      </Box>
 
-      <Box flexDirection="column" alignItems="flex-end" rowGap={1} flexShrink={0}>
-        <Button key="c-limpar" label="Limpar" onPress={() => void roda('clear')} />
-        <Button key="c-compactar" label="Compactar" onPress={() => void roda('compact')} />
-      </Box>
+        {/* Seção 3: ações, alinhadas à direita */}
+        <Box flexDirection="column" alignItems="flex-end" justifyContent="space-between" rowGap={1} flexShrink={0}>
+          <Button key="c-limpar" label="🗑️ Limpar" onPress={() => void roda('clear')}>
+            <Text color={VERMELHO}>🗑️ Limpar</Text>
+          </Button>
+          <Box flexDirection="row" alignItems="center" gap={1}>
+            <Button key="c-meta" label="🎯 Meta" onPress={() => void meta()}>
+              <Text color={VERDE}>🎯 Meta</Text>
+            </Button>
+            <Button key="c-compactar" label="🗂️ Compactar" onPress={() => void roda('compact')}>
+              <Text color={AMBAR}>🗂️ Compactar</Text>
+            </Button>
+          </Box>
+        </Box>
       </Box>
     )
   })
