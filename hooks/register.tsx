@@ -91,20 +91,31 @@ function svgContexto(c: Contexto, tom: string, W: number, H: number): string {
   )
 }
 
+// Cor da trilha por nível: do calmo (Low) ao forte (Max)
+const COR_NIVEL = ['#3fcf9b', '#4d8df0', '#8b5cf6', '#f59e0b', '#f06464']
+
+// Trilha no estilo do GPT: pílula escura, parte cheia colorida, bolinha branca grande e um pontinho por nível
 function svgEsforco(pos: number, W: number, H: number): string {
-  const pad = 11
+  const th = 16 // altura da pílula
   const y = H / 2
+  const r = 10 // raio da bolinha
+  const pad = r + 1
   const cx = (i: number) => pad + (i * (W - 2 * pad)) / ULTIMO
-  const trilha = `<line x1="${pad}" y1="${y}" x2="${W - pad}" y2="${y}" stroke="#808080" stroke-opacity="0.35" stroke-width="4" stroke-linecap="round"/>`
+  const cor = pos >= 0 ? COR_NIVEL[pos]! : AZUL
+  const fundo = `<rect x="1" y="${y - th / 2}" width="${W - 2}" height="${th}" rx="${th / 2}" fill="#3a3f4a"/>`
   const cheio =
-    pos > 0 ? `<line x1="${pad}" y1="${y}" x2="${cx(pos)}" y2="${y}" stroke="${AZUL}" stroke-width="4" stroke-linecap="round"/>` : ''
+    pos >= 0 ? `<rect x="1" y="${y - th / 2}" width="${cx(pos) - 1}" height="${th}" rx="${th / 2}" fill="${cor}"/>` : ''
   const pontos = NIVEIS.map((_, i) =>
     i === pos
       ? ''
-      : `<circle cx="${cx(i)}" cy="${y}" r="2.5" fill="${i < pos ? '#ffffff' : '#808080'}" fill-opacity="${i < pos ? 0.9 : 0.7}"/>`,
+      : `<circle cx="${cx(i)}" cy="${y}" r="2.2" fill="#ffffff" fill-opacity="${i < pos ? 0.75 : 0.35}"/>`,
   ).join('')
-  const bola = pos >= 0 ? `<circle cx="${cx(pos)}" cy="${y}" r="7.5" fill="#ffffff" stroke="${AZUL}" stroke-width="3"/>` : ''
-  return CABECA(W, H) + trilha + cheio + pontos + bola + '</svg>'
+  const bola =
+    pos >= 0
+      ? `<circle cx="${cx(pos)}" cy="${y + 1}" r="${r}" fill="#000000" fill-opacity="0.3"/>` +
+        `<circle cx="${cx(pos)}" cy="${y}" r="${r}" fill="#ffffff"/>`
+      : ''
+  return CABECA(W, H) + fundo + cheio + pontos + bola + '</svg>'
 }
 
 // Painel de tokens numa linha só, com largura calculada pelo texto (nunca quebra)
@@ -181,6 +192,27 @@ async function mede($: EngineInterface) {
   }
 }
 
+// Leva o esforço a um nível (/effort de verdade); a barra do app acompanha
+async function vaiParaNivel($: EngineInterface, idx: number) {
+  const alvo = NIVEIS[Math.min(ULTIMO, Math.max(0, Math.round(idx)))]!.id
+  if (alvo === ((await read($, esforco)) ?? (await read($, esforcoVisto)))) return
+  await update($, esforco, () => alvo)
+  if (!viaEsforco) return
+  try {
+    await $.command.run({ command: 'effort', args: alvo })
+    await update($, esforcoVisto, () => alvo)
+    await update($, esforco, () => null)
+  } catch {
+    $.ui.toast('Não consegui trocar o esforço')
+    await update($, esforco, () => null)
+  }
+}
+
+// A trilha arrastável roda num `Client`; se ela falhar nesta tela, volta a trilha desenhada com − e +
+let trilhaFalhou = false
+// Nível sob o dedo enquanto arrasta (a bolinha desenhada anda junto); null fora do arrasto
+let previa: number | null = null
+
 // ─── Registro ───────────────────────────────────────────────────────────────
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
@@ -235,6 +267,31 @@ export const register: Register = on => {
     return yield* next({ ...e, ...(forcaM !== null ? { model: forcaM } : {}), ...(forcaN !== null ? { effort: forcaN } : {}) })
   })
 
+  // A trilha arrastável avisou o nível em que foi solta
+  on('ui.message', async ($, e, next) => {
+    const d = e.data as { nivel?: unknown; previa?: unknown } | null
+    if (e.element === 'e-trilha' && d !== null && typeof d === 'object') {
+      if (typeof d.previa === 'number') {
+        previa = d.previa
+        $.ui.invalidate('ui.render')
+      } else if (typeof d.nivel === 'number') {
+        previa = d.nivel
+        $.ui.invalidate('ui.render')
+        await vaiParaNivel($, d.nivel)
+        previa = null
+        $.ui.invalidate('ui.render')
+      }
+    }
+    return next(e)
+  })
+
+  // Se a trilha não funcionar nesta tela, volta a trilha com − e +
+  on('ui.fault', async ($, e, next) => {
+    trilhaFalhou = true
+    $.ui.invalidate('ui.render')
+    return next(e)
+  })
+
   // Esconde a antiga barra de contexto (agora está aqui dentro) e põe esta faixa no topo
   on('ui.render', { component: 'AbovePromptList' }, async ($, e, next) => {
     const linhas = e.props.rows.filter(r => r.plugin !== 'context-bar')
@@ -247,6 +304,9 @@ export const register: Register = on => {
     if (e.props.hasSurvey) return next(e)
     const { Box, Text, Button } = $.ui.resolve(e)
     const Svg = e.surface === 'desktop' ? ($.ui.resolve(e) as Elements['desktop']).Svg : undefined
+    const tabela = $.ui.resolve(e) as Partial<Elements['desktop']>
+    const Client = tabela.Client
+    const temClient = Client !== undefined && e.surface === 'desktop'
 
     const [pedM, pedN, visto, real, ent, sai] = await Promise.all([
       read($, modelo),
@@ -258,7 +318,7 @@ export const register: Register = on => {
     ])
     const iModelo = qualModelo(pedM ?? real)
     const nivel: Esforco | null = pedN ?? visto
-    const pos = nivel === null ? -1 : NIVEIS.findIndex(x => x.id === nivel)
+    const pos = previa !== null ? previa : nivel === null ? -1 : NIVEIS.findIndex(x => x.id === nivel)
     const partes: Parte[] =
       ctx === null
         ? []
@@ -284,22 +344,8 @@ export const register: Register = on => {
       }
     }
 
-    // Sobe ou desce um nível de esforço (/effort); sem nível conhecido, parte do High
-    const anda = async (passo: number) => {
-      const atual = pos >= 0 ? pos : 2
-      const alvo = NIVEIS[Math.min(ULTIMO, Math.max(0, atual + passo))]!.id
-      if (alvo === nivel) return
-      await update($, esforco, () => alvo)
-      if (!viaEsforco) return
-      try {
-        await $.command.run({ command: 'effort', args: alvo })
-        await update($, esforcoVisto, () => alvo)
-        await update($, esforco, () => null)
-      } catch {
-        $.ui.toast('Não consegui trocar o esforço')
-        await update($, esforco, () => null)
-      }
-    }
+    // Sobe ou desce um nível de esforço (só onde não há trilha arrastável); sem nível conhecido, parte do High
+    const anda = (passo: number) => vaiParaNivel($, (pos >= 0 ? pos : 2) + passo)
 
     // Roda um comando do app como se fosse digitado (/compact, /clear)
     const roda = async (comando: string) => {
@@ -356,20 +402,34 @@ export const register: Register = on => {
             ))}
           </Box>
 
+          {/* Esforço: rótulo e nível juntos; a trilha vem depois e se arrasta (sem − e +) */}
           <Box flexDirection="row" alignItems="center" columnGap={2} flexShrink={0}>
             <Text dimColor size="footnote">
               Esforço
             </Text>
-            <Button key="e-menos" label="−" dimColor={pos === 0} onPress={() => void anda(-1)} />
-            {Svg !== undefined ? (
-              <Svg source={svgEsforco(pos, 130, 22)} alt={`Esforço ${pos >= 0 ? NIVEIS[pos]!.nome : 'do app'}`} width={130} height={22} />
-            ) : (
-              <Text color={AZUL}>{trilhaTexto(pos)}</Text>
-            )}
-            <Button key="e-mais" label="+" dimColor={pos === ULTIMO} onPress={() => void anda(1)} />
-            <Box width={8}>
-              <Text weight="semibold">{pos >= 0 ? NIVEIS[pos]!.nome : 'auto'}</Text>
+            <Box width={7}>
+              <Text weight="semibold" color={pos >= 0 ? COR_NIVEL[pos] : undefined}>
+                {pos >= 0 ? NIVEIS[pos]!.nome : 'auto'}
+              </Text>
             </Box>
+            {temClient && !trilhaFalhou && Svg !== undefined ? (
+              <Box position="relative" flexShrink={0}>
+                <Svg source={svgEsforco(pos, 150, 22)} alt={`Esforço ${pos >= 0 ? NIVEIS[pos]!.nome : 'do app'}`} width={150} height={22} />
+                <Box position="absolute" top={0} left={0} right={0} bottom={0}>
+                  <Client key="e-trilha" module="./trilha.tsx" props={{ niveis: NIVEIS.length }} width="100%" height="100%" />
+                </Box>
+              </Box>
+            ) : (
+              <>
+                <Button key="e-menos" label="−" dimColor={pos === 0} onPress={() => void anda(-1)} />
+                {Svg !== undefined ? (
+                  <Svg source={svgEsforco(pos, 130, 22)} alt={`Esforço ${pos >= 0 ? NIVEIS[pos]!.nome : 'do app'}`} width={130} height={22} />
+                ) : (
+                  <Text color={AZUL}>{trilhaTexto(pos)}</Text>
+                )}
+                <Button key="e-mais" label="+" dimColor={pos === ULTIMO} onPress={() => void anda(1)} />
+              </>
+            )}
           </Box>
         </Box>
       </Box>
