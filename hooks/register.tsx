@@ -326,7 +326,7 @@ export const register: Register = on => {
             { texto: `${curto(ctx.usados)}/${curto(ctx.janela)}`, cor: '#e6e6e8', forte: true },
             { texto: `↓${curto(ent)}`, cor: VERDE },
             { texto: `↑${curto(sai)}`, cor: VERMELHO },
-            ...(custo !== null ? [{ texto: `$${custo.toFixed(2).replace('.', ',')}`, cor: '#9a9aa4' }] : []),
+            // sem o custo em $: é o preço de API estimado, que quem usa assinatura não paga
           ]
     const painel = partes.length > 0 ? svgPainel(partes, 22) : null
     const tom = ctx === null ? '#808080' : ctx.pct >= 85 ? ROSA : ctx.pct >= 65 ? AMBAR : VERDE

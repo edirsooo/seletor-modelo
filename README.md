@@ -23,7 +23,7 @@ No app do Claude (aba Code), onde `/plugin` não roda: clique no **+** ao lado d
 ## O que tem na faixa
 
 - **Contexto**: barra arredondada colorida (instruções, ferramentas, conversa e reserva) com a porcentagem usada.
-- **Painel de tokens**: uso da janela (ex.: `215k/1M`), **↓** entrada em verde, **↑** saída em vermelho e o custo da sessão em US$.
+- **Painel de tokens**: uso da janela (ex.: `215k/1M`), **↓** entrada em verde e **↑** saída em vermelho.
 - **Modelos**: Fable, Opus, Sonnet e Haiku (do mais forte ao mais leve). Rodam `/model` de verdade, e a barra de baixo do app acompanha.
 - **Esforço**: o nível aparece ao lado do nome (ex.: **Esforço Medium**) e a trilha vem depois. Segure a bolinha e arraste, ou clique num ponto da trilha (Low, Medium, High, X-High, Max). Um pontinho marca cada nível e a cor muda com ele: verde, azul, roxo, âmbar e vermelho. Roda `/effort`.
 - **Limpar**: começa a conversa do zero (`/clear`). Apaga na hora, sem confirmação.
