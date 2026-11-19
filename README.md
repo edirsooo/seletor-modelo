@@ -2,6 +2,12 @@
 
 Faixa acima da caixa de mensagem do Claude Code com tudo o que se mexe durante a conversa.
 
+![A faixa: contexto, tokens, modelos, esforço, Limpar e Compactar](imagens/faixa.png)
+
+Trocando para o Haiku e subindo o esforço para High (a trilha muda de cor com o nível):
+
+![A faixa com Haiku e esforço High](imagens/faixa-haiku-high.png)
+
 ## Instalar
 
 No Claude Code do terminal, digite:
