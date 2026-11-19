@@ -310,24 +310,28 @@ export const register: Register = on => {
       }
     }
 
-    // Duas colunas: à esquerda as duas linhas (contexto; modelo e esforço), à direita Limpar sobre Compactar
+    // Duas colunas: à esquerda as duas linhas (contexto; modelo e esforço), à direita Limpar sobre Compactar.
+    // Tela estreita (janela pequena, monitor vertical): a coluna da esquerda encolhe e cada linha quebra
+    // em blocos inteiros (barra+%, painel, modelos, esforço), sem partir nenhum; os botões ficam à direita.
     return (
       <Box flexDirection="row" alignItems="center" columnGap={3}>
-      <Box flexDirection="column" rowGap={1}>
+      <Box flexDirection="column" rowGap={1} flexGrow={1} flexShrink={1}>
         {/* Linha 1: contexto, uma barra redonda e simples */}
         {ctx !== null && (
-          <Box flexDirection="row" alignItems="center" columnGap={2}>
-            <Text dimColor size="footnote">
-              Contexto
-            </Text>
-            {Svg !== undefined ? (
-              <Svg source={svgContexto(ctx, tom, 150, 8)} alt={`Contexto em ${ctx.pct}%`} width={150} height={8} />
-            ) : (
-              <Text color={tom}>{barraTexto(ctx.pct, 20)}</Text>
-            )}
-            <Text color={tom} weight="semibold" tabular>
-              {`${ctx.pct}%`}
-            </Text>
+          <Box flexDirection="row" alignItems="center" flexWrap="wrap" columnGap={2} rowGap={1}>
+            <Box flexDirection="row" alignItems="center" columnGap={2} flexShrink={0}>
+              <Text dimColor size="footnote">
+                Contexto
+              </Text>
+              {Svg !== undefined ? (
+                <Svg source={svgContexto(ctx, tom, 150, 8)} alt={`Contexto em ${ctx.pct}%`} width={150} height={8} />
+              ) : (
+                <Text color={tom}>{barraTexto(ctx.pct, 20)}</Text>
+              )}
+              <Text color={tom} weight="semibold" tabular>
+                {`${ctx.pct}%`}
+              </Text>
+            </Box>
             {/* Painelzinho: uso da janela, entrada (verde), saída (vermelho) e custo */}
             {Svg !== undefined && painel !== null ? (
               <Svg source={painel.svg} alt={partes.map(p => p.texto).join(' · ')} width={painel.W} height={22} />
@@ -340,8 +344,8 @@ export const register: Register = on => {
         )}
 
         {/* Linha 2: modelo e esforço */}
-        <Box flexDirection="row" alignItems="center" columnGap={3}>
-          <Box flexDirection="row" alignItems="center" gap={1}>
+        <Box flexDirection="row" alignItems="center" flexWrap="wrap" columnGap={3} rowGap={1}>
+          <Box flexDirection="row" alignItems="center" gap={1} flexShrink={0}>
             {MODELOS.map((x, i) => (
               <Button
                 key={`m-${x.id}`}
@@ -352,7 +356,7 @@ export const register: Register = on => {
             ))}
           </Box>
 
-          <Box flexDirection="row" alignItems="center" columnGap={2}>
+          <Box flexDirection="row" alignItems="center" columnGap={2} flexShrink={0}>
             <Text dimColor size="footnote">
               Esforço
             </Text>
@@ -370,8 +374,7 @@ export const register: Register = on => {
         </Box>
       </Box>
 
-      <Box flexGrow={1} />
-      <Box flexDirection="column" alignItems="flex-end" rowGap={1}>
+      <Box flexDirection="column" alignItems="flex-end" rowGap={1} flexShrink={0}>
         <Button key="c-limpar" label="Limpar" onPress={() => void roda('clear')} />
         <Button key="c-compactar" label="Compactar" onPress={() => void roda('compact')} />
       </Box>
