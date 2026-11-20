@@ -372,7 +372,7 @@ export const register: Register = on => {
     // Tela estreita: as seções quebram inteiras para a linha de baixo, sem partir nenhuma.
     const nomeNivel = pos >= 0 ? NIVEIS[pos]!.nome : 'do app'
     return (
-      <Box flexDirection="row" alignItems="stretch" justifyContent="space-between" columnGap={2}>
+      <Box flexDirection="row" flexWrap="wrap" alignItems="stretch" justifyContent="space-between" columnGap={2} rowGap={1}>
         {/* Seção 1: contexto e modelos */}
         <Box flexDirection="column" alignItems="stretch" justifyContent="space-between" rowGap={1} flexShrink={0}>
           <Box flexDirection="row" alignItems="center" justifyContent="space-between" columnGap={2}>
@@ -393,7 +393,7 @@ export const register: Register = on => {
               </Text>
             )}
           </Box>
-          <Box flexDirection="row" alignItems="center" gap={1}>
+          <Box flexDirection="row" flexWrap="wrap" alignItems="center" gap={1}>
             {MODELOS.map((x, i) => (
               <Button
                 key={`m-${x.id}`}
@@ -416,7 +416,7 @@ export const register: Register = on => {
               </Text>
             )}
           </Box>
-          <Box flexDirection="row" alignItems="center" columnGap={2}>
+          <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={2} rowGap={1}>
             <Text dimColor size="footnote">
               Esforço
             </Text>
@@ -451,7 +451,7 @@ export const register: Register = on => {
           <Button key="c-limpar" label="🗑️ Limpar" onPress={() => void roda('clear')}>
             <Text color={VERMELHO}>🗑️ Limpar</Text>
           </Button>
-          <Box flexDirection="row" alignItems="center" gap={1}>
+          <Box flexDirection="row" flexWrap="wrap" alignItems="center" gap={1}>
             <Button key="c-meta" label="🎯 Meta" onPress={() => void meta()}>
               <Text color={VERDE}>🎯 Meta</Text>
             </Button>
