@@ -368,8 +368,9 @@ export const register: Register = on => {
     // Três seções bem espaçadas, cada uma com duas linhas alinhadas entre si:
     //   1) Contexto (barra + %) em cima, modelos embaixo; o % termina na borda direita dos modelos.
     //   2) Tokens em cima, esforço embaixo; os dois começam na mesma borda esquerda.
-    //   3) Limpar em cima, Meta e Compactar embaixo; tudo encostado na direita.
-    // Tela estreita: as seções quebram inteiras para a linha de baixo, sem partir nenhuma.
+    //   3) Limpar, Meta e Compactar lado a lado, numa linha só.
+    // Tela estreita: as seções quebram inteiras para a linha de baixo (primeiro os botões, depois
+    // tokens e esforço), sem partir nenhuma.
     const nomeNivel = pos >= 0 ? NIVEIS[pos]!.nome : 'do app'
     return (
       <Box flexDirection="row" flexWrap="wrap" alignItems="stretch" justifyContent="space-between" columnGap={2} rowGap={1}>
@@ -447,18 +448,16 @@ export const register: Register = on => {
         </Box>
 
         {/* Seção 3: ações, alinhadas à direita */}
-        <Box flexDirection="column" alignItems="flex-end" justifyContent="space-between" rowGap={1} flexShrink={0}>
+        <Box flexDirection="row" flexWrap="wrap" alignItems="center" alignSelf="center" gap={1} flexShrink={0}>
           <Button key="c-limpar" label="🗑️ Limpar" onPress={() => void roda('clear')}>
             <Text color={VERMELHO}>🗑️ Limpar</Text>
           </Button>
-          <Box flexDirection="row" flexWrap="wrap" alignItems="center" gap={1}>
-            <Button key="c-meta" label="🎯 Meta" onPress={() => void meta()}>
-              <Text color={VERDE}>🎯 Meta</Text>
-            </Button>
-            <Button key="c-compactar" label="🗂️ Compactar" onPress={() => void roda('compact')}>
-              <Text color={AMBAR}>🗂️ Compactar</Text>
-            </Button>
-          </Box>
+          <Button key="c-meta" label="🎯 Meta" onPress={() => void meta()}>
+            <Text color={VERDE}>🎯 Meta</Text>
+          </Button>
+          <Button key="c-compactar" label="🗂️ Compactar" onPress={() => void roda('compact')}>
+            <Text color={AMBAR}>🗂️ Compactar</Text>
+          </Button>
         </Box>
       </Box>
     )
