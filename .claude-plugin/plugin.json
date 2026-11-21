@@ -1,6 +1,6 @@
 {
   "name": "seletor-modelo",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Faixa acima do prompt com contexto, tokens, 4 modelos, trilha de esforço e botões Limpar, Meta e Compactar",
   "types": "./types/index.d.ts"
 }

@@ -365,13 +365,25 @@ export const register: Register = on => {
       }
     }
 
-    // Três seções bem espaçadas, cada uma com duas linhas alinhadas entre si:
-    //   1) Contexto (barra + %) em cima, modelos embaixo; o % termina na borda direita dos modelos.
-    //   2) Tokens em cima, esforço embaixo; os dois começam na mesma borda esquerda.
-    //   3) Limpar, Meta e Compactar lado a lado, numa linha só.
-    // Tela estreita: as seções quebram inteiras para a linha de baixo (primeiro os botões, depois
-    // tokens e esforço), sem partir nenhuma.
+    // Tela larga: três seções, cada uma com duas linhas alinhadas entre si:
+    //   1) Contexto (barra + %) em cima, modelos embaixo.
+    //   2) Tokens em cima, esforço embaixo.
+    //   3) Limpar em cima, Meta e Compactar embaixo, encostados na direita.
+    // Tela estreita (modo compacto): as ações viram só ícones, ao lado dos modelos, e a seção 3 some.
+    // Se ainda faltar espaço, tokens e esforço descem inteiros para a linha de baixo.
     const nomeNivel = pos >= 0 ? NIVEIS[pos]!.nome : 'do app'
+    // Só o celular usa o modo compacto; no desktop a faixa fica sempre como a original (três seções)
+    const compacto = e.surface === 'mobile'
+    const ACOES = [
+      { key: 'c-limpar', icone: '🗑️', nome: 'Limpar', cor: VERMELHO, faz: () => void roda('clear') },
+      { key: 'c-meta', icone: '🎯', nome: 'Meta', cor: VERDE, faz: () => void meta() },
+      { key: 'c-compactar', icone: '🗂️', nome: 'Compactar', cor: AMBAR, faz: () => void roda('compact') },
+    ]
+    const botao = (a: (typeof ACOES)[number]) => (
+      <Button key={a.key} label={`${a.icone} ${a.nome}`} onPress={a.faz}>
+        <Text color={a.cor}>{compacto ? a.icone : `${a.icone} ${a.nome}`}</Text>
+      </Button>
+    )
     return (
       <Box flexDirection="row" flexWrap="wrap" alignItems="stretch" justifyContent="space-between" columnGap={2} rowGap={1}>
         {/* Seção 1: contexto e modelos */}
@@ -403,6 +415,7 @@ export const register: Register = on => {
                 onPress={() => void escolheModelo(x.id)}
               />
             ))}
+            {compacto && ACOES.map(botao)}
           </Box>
         </Box>
 
@@ -448,17 +461,15 @@ export const register: Register = on => {
         </Box>
 
         {/* Seção 3: ações, alinhadas à direita */}
-        <Box flexDirection="row" flexWrap="wrap" alignItems="center" alignSelf="center" gap={1} flexShrink={0}>
-          <Button key="c-limpar" label="🗑️ Limpar" onPress={() => void roda('clear')}>
-            <Text color={VERMELHO}>🗑️ Limpar</Text>
-          </Button>
-          <Button key="c-meta" label="🎯 Meta" onPress={() => void meta()}>
-            <Text color={VERDE}>🎯 Meta</Text>
-          </Button>
-          <Button key="c-compactar" label="🗂️ Compactar" onPress={() => void roda('compact')}>
-            <Text color={AMBAR}>🗂️ Compactar</Text>
-          </Button>
-        </Box>
+        {!compacto && (
+          <Box flexDirection="column" alignItems="flex-end" justifyContent="space-between" rowGap={1} flexShrink={0}>
+            {botao(ACOES[0]!)}
+            <Box flexDirection="row" alignItems="center" gap={1}>
+              {botao(ACOES[1]!)}
+              {botao(ACOES[2]!)}
+            </Box>
+          </Box>
+        )}
       </Box>
     )
   })
