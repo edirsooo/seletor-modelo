@@ -210,6 +210,8 @@ async function vaiParaNivel($: EngineInterface, idx: number) {
 
 // A trilha arrastável roda num `Client`; se ela falhar nesta tela, volta a trilha desenhada com − e +
 let trilhaFalhou = false
+let falhouNaLargura: number | null = null
+let ultimaLargura: number | null = null
 // Nível sob o dedo enquanto arrasta (a bolinha desenhada anda junto); null fora do arrasto
 let previa: number | null = null
 
@@ -287,7 +289,9 @@ export const register: Register = on => {
 
   // Se a trilha não funcionar nesta tela, volta a trilha com − e +
   on('ui.fault', async ($, e, next) => {
+    if (e.element !== 'e-trilha') return next(e)
     trilhaFalhou = true
+    falhouNaLargura = ultimaLargura
     $.ui.invalidate('ui.render')
     return next(e)
   })
@@ -365,14 +369,14 @@ export const register: Register = on => {
       }
     }
 
-    // Tela larga: três seções, cada uma com duas linhas alinhadas entre si:
-    //   1) Contexto (barra + %) em cima, modelos embaixo.
-    //   2) Tokens em cima, esforço embaixo.
-    //   3) Limpar em cima, Meta e Compactar embaixo, encostados na direita.
-    // Tela estreita (modo compacto): as ações viram só ícones, ao lado dos modelos, e a seção 3 some.
-    // Se ainda faltar espaço, tokens e esforço descem inteiros para a linha de baixo.
+    // Layout em blocos de UMA linha cada, que quebram inteiros (nunca pela metade):
+    //   linha 1: [Contexto barra %  · tokens]  ............  [Limpar Meta Compactar]
+    //   linha 2: [Fable Opus Sonnet Haiku]     ............  [Esforço nível trilha]
+    // Tela larga: 2 linhas, blocos da direita encostados na direita.
+    // Tela estreita (monitor vertical, notebook com zoom): o bloco da direita desce
+    // inteiro para baixo do da esquerda, alinhado à esquerda. Nada fica solto no meio.
     const nomeNivel = pos >= 0 ? NIVEIS[pos]!.nome : 'do app'
-    // Só o celular usa o modo compacto; no desktop a faixa fica sempre como a original (três seções)
+    // Só o celular mostra as ações como ícones
     const compacto = e.surface === 'mobile'
     const ACOES = [
       { key: 'c-limpar', icone: '🗑️', nome: 'Limpar', cor: VERMELHO, faz: () => void roda('clear') },
@@ -384,44 +388,35 @@ export const register: Register = on => {
         <Text color={a.cor}>{compacto ? a.icone : `${a.icone} ${a.nome}`}</Text>
       </Button>
     )
-    return (
-      <Box flexDirection="row" flexWrap="wrap" alignItems="stretch" justifyContent="space-between" columnGap={2} rowGap={1}>
-        {/* Seção 1: contexto e modelos */}
-        <Box flexDirection="column" alignItems="stretch" justifyContent="space-between" rowGap={1} flexShrink={0}>
-          <Box flexDirection="row" alignItems="center" justifyContent="space-between" columnGap={2}>
-            {ctx !== null && (
-              <Text dimColor size="footnote">
-                Contexto
-              </Text>
-            )}
-            {ctx !== null &&
-              (Svg !== undefined ? (
-                <Svg source={svgContexto(ctx, tom, 130, 8)} alt={`Contexto em ${ctx.pct}%`} width={130} height={8} />
-              ) : (
-                <Text color={tom}>{barraTexto(ctx.pct, 20)}</Text>
-              ))}
-            {ctx !== null && (
-              <Text color={tom} weight="semibold" tabular>
-                {`${ctx.pct}%`}
-              </Text>
-            )}
-          </Box>
-          <Box flexDirection="row" flexWrap="wrap" alignItems="center" gap={1}>
-            {MODELOS.map((x, i) => (
-              <Button
-                key={`m-${x.id}`}
-                label={x.curto}
-                variant={i === iModelo ? 'primary' : 'secondary'}
-                onPress={() => void escolheModelo(x.id)}
-              />
-            ))}
-            {compacto && ACOES.map(botao)}
-          </Box>
-        </Box>
 
-        {/* Seção 2: tokens e esforço */}
-        <Box flexDirection="column" alignItems="stretch" justifyContent="space-between" rowGap={1} flexShrink={0}>
-          <Box flexDirection="row" alignItems="center" justifyContent="flex-start">
+    // A trilha arrastável volta a ser tentada quando a largura da tela muda (ex.: janela levada para outro monitor)
+    const largura = e.viewport?.columns ?? null
+    ultimaLargura = largura
+    if (trilhaFalhou && largura !== null && falhouNaLargura !== null && largura !== falhouNaLargura) {
+      trilhaFalhou = false
+      falhouNaLargura = null
+    }
+
+    // Bloco: contexto + tokens (quebra entre os dois só se não couber)
+    const blocoContexto = (
+      <Box key="b-contexto" flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={3} rowGap={1} flexShrink={1}>
+        {ctx !== null && (
+          <Box flexDirection="row" alignItems="center" columnGap={2} flexShrink={0}>
+            <Text dimColor size="footnote">
+              Contexto
+            </Text>
+            {Svg !== undefined ? (
+              <Svg source={svgContexto(ctx, tom, 110, 8)} alt={`Contexto em ${ctx.pct}%`} width={110} height={8} />
+            ) : (
+              <Text color={tom}>{barraTexto(ctx.pct, 16)}</Text>
+            )}
+            <Text color={tom} weight="semibold" tabular>
+              {`${ctx.pct}%`}
+            </Text>
+          </Box>
+        )}
+        {partes.length > 0 && (
+          <Box flexDirection="row" alignItems="center" flexShrink={0}>
             {Svg !== undefined && painel !== null ? (
               <Svg source={painel.svg} alt={partes.map(p => p.texto).join(' · ')} width={painel.W} height={22} />
             ) : (
@@ -430,46 +425,73 @@ export const register: Register = on => {
               </Text>
             )}
           </Box>
-          <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={2} rowGap={1}>
-            <Text dimColor size="footnote">
-              Esforço
-            </Text>
-            <Box width={7}>
-              <Text weight="semibold" color={pos >= 0 ? COR_NIVEL[pos] : undefined}>
-                {pos >= 0 ? NIVEIS[pos]!.nome : 'auto'}
-              </Text>
-            </Box>
-            {temClient && !trilhaFalhou && Svg !== undefined ? (
-              <Box position="relative" flexShrink={0}>
-                <Svg source={svgEsforco(pos, 120, 22)} alt={`Esforço ${nomeNivel}`} width={120} height={22} />
-                <Box position="absolute" top={0} left={0} right={0} bottom={0}>
-                  <Client key="e-trilha" module="./trilha.tsx" props={{ niveis: NIVEIS.length }} width="100%" height="100%" />
-                </Box>
-              </Box>
-            ) : (
-              <>
-                <Button key="e-menos" label="−" dimColor={pos === 0} onPress={() => void anda(-1)} />
-                {Svg !== undefined ? (
-                  <Svg source={svgEsforco(pos, 130, 22)} alt={`Esforço ${nomeNivel}`} width={130} height={22} />
-                ) : (
-                  <Text color={AZUL}>{trilhaTexto(pos)}</Text>
-                )}
-                <Button key="e-mais" label="+" dimColor={pos === ULTIMO} onPress={() => void anda(1)} />
-              </>
-            )}
-          </Box>
-        </Box>
+        )}
+      </Box>
+    )
 
-        {/* Seção 3: ações, alinhadas à direita */}
-        {!compacto && (
-          <Box flexDirection="column" alignItems="flex-end" justifyContent="space-between" rowGap={1} flexShrink={0}>
-            {botao(ACOES[0]!)}
-            <Box flexDirection="row" alignItems="center" gap={1}>
-              {botao(ACOES[1]!)}
-              {botao(ACOES[2]!)}
+    // Bloco: ações numa linha só
+    const blocoAcoes = (
+      <Box key="b-acoes" flexDirection="row" alignItems="center" gap={1} flexShrink={0}>
+        {ACOES.map(botao)}
+      </Box>
+    )
+
+    // Bloco: os 4 modelos numa linha só
+    const blocoModelos = (
+      <Box key="b-modelos" flexDirection="row" alignItems="center" gap={1} flexShrink={0}>
+        {MODELOS.map((x, i) => (
+          <Button
+            key={`m-${x.id}`}
+            label={x.curto}
+            variant={i === iModelo ? 'primary' : 'secondary'}
+            onPress={() => void escolheModelo(x.id)}
+          />
+        ))}
+      </Box>
+    )
+
+    // Bloco: esforço numa linha só (rótulo, nível, trilha); − e + sempre ao lado da trilha
+    const blocoEsforco = (
+      <Box key="b-esforco" flexDirection="row" alignItems="center" columnGap={2} flexShrink={0}>
+        <Text dimColor size="footnote">
+          Esforço
+        </Text>
+        <Box width={7}>
+          <Text weight="semibold" color={pos >= 0 ? COR_NIVEL[pos] : undefined}>
+            {pos >= 0 ? NIVEIS[pos]!.nome : 'auto'}
+          </Text>
+        </Box>
+        {temClient && !trilhaFalhou && Svg !== undefined ? (
+          <Box position="relative" flexShrink={0}>
+            <Svg source={svgEsforco(pos, 120, 22)} alt={`Esforço ${nomeNivel}`} width={120} height={22} />
+            <Box position="absolute" top={0} left={0} right={0} bottom={0}>
+              <Client key="e-trilha" module="./trilha.tsx" props={{ niveis: NIVEIS.length }} width="100%" height="100%" />
             </Box>
+          </Box>
+        ) : (
+          <Box flexDirection="row" alignItems="center" gap={1} flexShrink={0}>
+            <Button key="e-menos" label="−" dimColor={pos === 0} onPress={() => void anda(-1)} />
+            {Svg !== undefined ? (
+              <Svg source={svgEsforco(pos, 110, 22)} alt={`Esforço ${nomeNivel}`} width={110} height={22} />
+            ) : (
+              <Text color={AZUL}>{trilhaTexto(pos)}</Text>
+            )}
+            <Button key="e-mais" label="+" dimColor={pos === ULTIMO} onPress={() => void anda(1)} />
           </Box>
         )}
+      </Box>
+    )
+
+    return (
+      <Box flexDirection="column" alignItems="stretch" rowGap={1}>
+        <Box key="l-1" flexDirection="row" flexWrap="wrap" alignItems="center" justifyContent="space-between" columnGap={3} rowGap={1}>
+          {blocoContexto}
+          {blocoAcoes}
+        </Box>
+        <Box key="l-2" flexDirection="row" flexWrap="wrap" alignItems="center" justifyContent="space-between" columnGap={3} rowGap={1}>
+          {blocoModelos}
+          {blocoEsforco}
+        </Box>
       </Box>
     )
   })
