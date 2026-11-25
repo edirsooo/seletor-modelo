@@ -15,6 +15,8 @@ declare module 'claude-code' {
       saida: number
       /** início da conversa que a soma conta; muda no /clear e zera a soma */
       desde: number | null
+      /** chave Ultracode da faixa: true = cada pedido digitado sai com a palavra "ultracode" */
+      ultra: boolean
     }
   }
 }

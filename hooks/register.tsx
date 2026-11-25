@@ -13,6 +13,9 @@ const esforcoVisto = atom({ plugin: 'seletor-modelo', key: 'esforcoVisto' } as c
 const entrada = atom({ plugin: 'seletor-modelo', key: 'entrada' } as const, 0)
 const saida = atom({ plugin: 'seletor-modelo', key: 'saida' } as const, 0)
 const desde = atom({ plugin: 'seletor-modelo', key: 'desde' } as const, null)
+// chave Ultracode: ligada, cada pedido digitado leva a palavra "ultracode" (libera os vários agentes)
+const ultra = atom({ plugin: 'seletor-modelo', key: 'ultra' } as const, false)
+const PALAVRA_ULTRA = /\bultra\s?code\b/i
 let custo: number | null = null
 
 type Fatia = { rotulo: string; tokens: number }
@@ -116,6 +119,19 @@ function svgEsforco(pos: number, W: number, H: number): string {
         `<circle cx="${cx(pos)}" cy="${y}" r="${r}" fill="#ffffff"/>`
       : ''
   return CABECA(W, H) + fundo + cheio + pontos + bola + '</svg>'
+}
+
+// Chavinha liga/desliga (estilo iOS): roxa com a bolinha à direita quando ligada
+function svgChave(ligada: boolean, W = 38, H = 22): string {
+  const r = H / 2 - 3
+  const cx = ligada ? W - H / 2 : H / 2
+  return (
+    CABECA(W, H) +
+    `<rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" rx="${(H - 1) / 2}" fill="${ligada ? '#8b5cf6' : '#3a3f4a'}"/>` +
+    `<circle cx="${cx}" cy="${H / 2 + 1}" r="${r}" fill="#000000" fill-opacity="0.25"/>` +
+    `<circle cx="${cx}" cy="${H / 2}" r="${r}" fill="#ffffff"/>` +
+    '</svg>'
+  )
 }
 
 // Painel de tokens numa linha só, com largura calculada pelo texto (nunca quebra)
@@ -269,8 +285,21 @@ export const register: Register = on => {
     return yield* next({ ...e, ...(forcaM !== null ? { model: forcaM } : {}), ...(forcaN !== null ? { effort: forcaN } : {}) })
   })
 
+  // Chave Ultracode ligada: acrescenta a palavra ao pedido digitado (não mexe em comandos / nem em mensagens internas)
+  on('prompt.submit', async ($, e, next) => {
+    if (e.command !== undefined || e.isMeta === true) return next(e)
+    if (!(await read($, ultra)) || PALAVRA_ULTRA.test(e.text)) return next(e)
+    return next({ ...e, text: `${e.text}\n\nultracode` })
+  })
+
   // A trilha arrastável avisou o nível em que foi solta
   on('ui.message', async ($, e, next) => {
+    if (e.element === 'u-chave') {
+      const novo = !(await read($, ultra))
+      await update($, ultra, () => novo)
+      $.ui.toast(novo ? 'Ultracode ligado: os próximos pedidos podem usar vários agentes (gasta mais)' : 'Ultracode desligado')
+      return next(e)
+    }
     const d = e.data as { nivel?: unknown; previa?: unknown } | null
     if (e.element === 'e-trilha' && d !== null && typeof d === 'object') {
       if (typeof d.previa === 'number') {
@@ -312,14 +341,20 @@ export const register: Register = on => {
     const Client = tabela.Client
     const temClient = Client !== undefined && e.surface === 'desktop'
 
-    const [pedM, pedN, visto, real, ent, sai] = await Promise.all([
+    const [pedM, pedN, visto, real, ent, sai, ultraLigado] = await Promise.all([
       read($, modelo),
       read($, esforco),
       read($, esforcoVisto),
       $.session.model().catch(() => ''),
       read($, entrada),
       read($, saida),
+      read($, ultra),
     ])
+    const alternaUltra = async () => {
+      const novo = !ultraLigado
+      await update($, ultra, () => novo)
+      $.ui.toast(novo ? 'Ultracode ligado: os próximos pedidos podem usar vários agentes (gasta mais)' : 'Ultracode desligado')
+    }
     const iModelo = qualModelo(pedM ?? real)
     const nivel: Esforco | null = pedN ?? visto
     const pos = previa !== null ? previa : nivel === null ? -1 : NIVEIS.findIndex(x => x.id === nivel)
@@ -479,6 +514,30 @@ export const register: Register = on => {
             <Button key="e-mais" label="+" dimColor={pos === ULTIMO} onPress={() => void anda(1)} />
           </Box>
         )}
+        <Box key="u-bloco" flexDirection="row" alignItems="center" columnGap={1} flexShrink={0}>
+          <Text dimColor={!ultraLigado} color={ultraLigado ? ROXO : undefined} size="footnote">
+            Ultra
+          </Text>
+          {temClient && Svg !== undefined ? (
+            <Box position="relative" flexShrink={0}>
+              <Svg source={svgChave(ultraLigado)} alt={ultraLigado ? 'Ultracode ligado' : 'Ultracode desligado'} width={38} height={22} />
+              <Box position="absolute" top={0} left={0} right={0} bottom={0}>
+                <Client key="u-chave" module="./chave.tsx" props={{}} width="100%" height="100%" />
+              </Box>
+            </Box>
+          ) : (
+            <Button
+              key="u-ultra"
+              label={ultraLigado ? 'Ultracode ligado' : 'Ultracode desligado'}
+              plain
+              onPress={() => void alternaUltra()}
+            >
+              <Text color={ultraLigado ? ROXO : undefined} dimColor={!ultraLigado}>
+                {ultraLigado ? '◉' : '○'}
+              </Text>
+            </Button>
+          )}
+        </Box>
       </Box>
     )
 
